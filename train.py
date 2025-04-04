@@ -12,48 +12,36 @@ dataset = load_dataset("muzaffercky/kurdish-kurmanji-articles", split="train")
 
 
 class Lang:
-    def __init__(self, name):
-        self.name = name
-        self.word2index = {}
-        self.word2count = {}
-        self.index2word = {}
-        self.words_count = 0
-        self.max_length = 0
+    def __init__(self, text: str, is_word_level=False):
+        self.is_word_level = is_word_level
 
-    def encode(self, text):
+        if is_word_level:
+            words = set(
+                word for sentence in text.split(".") for word in sentence.split(" ")
+            )
+            self.vocab_size = len(words)
+            self.stoi = {word: i for i, word in enumerate(words)}
+            self.itos = {i: word for i, word in enumerate(words)}
+        else:
+            chars = set(text)
+            self.vocab_size = len(chars)
+            self.stoi = {char: i for i, char in enumerate(chars)}
+            self.itos = {i: char for i, char in enumerate(chars)}
+
+    def encode(self, text: str):
+        if not self.is_word_level:
+            return [self.stoi[char] for char in text]
+
         words = [word for sentence in text.split(".") for word in sentence.split(" ")]
-        return [self.word2index[word] for word in words]
+        return [self.stoi[word] for word in words]
 
     def decode(self, indexes):
-        words = [self.index2word[index.item()] for index in indexes]
+        words = [self.itos[index.item()] for index in indexes]
         return " ".join(words)
-
-    def add_article(self, article):
-        words = [
-            word for sentence in article.split(".") for word in sentence.split(" ")
-        ]
-        self.max_length = max(self.max_length, len(words))
-        for word in words:
-            self.add_word(word)
-
-    def add_word(self, word):
-        if word not in self.word2index:
-            self.word2index[word] = self.words_count
-            self.word2count[word] = 1
-            self.index2word[self.words_count] = word
-            self.words_count += 1
-        else:
-            self.word2count[word] += 1
 
 
 def prepare_data(dataset):
-    lang = Lang("Kurdish Kurmanji")
-    text = ""
-    for row in dataset:
-        lang.add_article(row["content"])
-        text += row["content"] + " "
-    print(f"Words count: {lang.words_count}")
-    return lang, text
+    return "".join(row["content"] for row in dataset)
 
 
 def get_batches(split):
@@ -204,7 +192,7 @@ class GPTLanguage(nn.Module):
 
     def generate(self, idx, max_new_tokens):
         # shape of idx is (B, T)
-        
+
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -block_size:]  # Get tokens of last block_size
             logits, _ = self(idx_cond)
@@ -248,9 +236,10 @@ embedding_size = 256
 layers_num = 2
 
 
-lang, text = prepare_data(dataset)
+text = prepare_data(dataset)
+lang = Lang(text, is_word_level=True)
 data = torch.tensor(lang.encode(text), dtype=torch.long)
-vocab_size = lang.words_count
+vocab_size = lang.vocab_size
 n = int(0.9 * len(data))
 train_data = data[:n]
 val_data = data[n:]
@@ -277,5 +266,6 @@ encoded = lang.encode(sentence)
 print("encoded:", encoded)
 context = torch.tensor(encoded, dtype=torch.long).unsqueeze(0)
 tokens = model.generate(context, max_new_tokens=200)
-generated = lang.decode(tokens[0])
+tokens_without_input = tokens[0][len(encoded) :]
+generated = lang.decode(tokens_without_input)
 print(generated)
