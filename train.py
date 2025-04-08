@@ -95,15 +95,12 @@ class Head(nn.Module):
         self.dropout = nn.Dropout(dropout_p)
 
     def forward(self, x):
-        _, T, C = x.shape  # x shape is (B, T, C)
-
-        key = self.W_key(x)  # (B, T, C) -> (B, T, head_size)
+        _, T, C = x.shape  # x has shape (batch size, block size, embedding_size)
+        key = self.W_key(x)
         query = self.W_query(x)  # (B, T, C) -> (B, T, head_size)
 
         # compute attention scores
-        wei = (
-            query @ key.transpose(-2, -1) * C**-0.5
-        )  # (B, T, head_size) @ (B, head_size, T) -> (B, T, T)
+        wei = query @ key.transpose(-2, -1) * C**-0.5 # (B, T, C) @ (B, C, T) -> (B, T, T)
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float("-inf"))  # (B, T, T)
         wei = F.softmax(wei, dim=-1)  # (B, T, T)
         wei = self.dropout(wei)  # (B, T, T)
@@ -174,10 +171,12 @@ class GPTLanguage(nn.Module):
     def forward(self, idx, targets=None):
         T = idx.size(-1)
         tok_emb = self.token_embedding_table(idx)
-        pos_emb = self.pos_embedding_table(torch.arange(T, device=idx.device))
+        pos_emb = self.pos_embedding_table(
+            torch.arange(T, device=idx.device)
+        )  # (T) -> (T, embd_size)
 
-        x = tok_emb + pos_emb
-        x = self.blocks(x)
+        x = tok_emb + pos_emb  # (B, T, embd_size) + (T, embd_size) -> (B, T, embd_size)
+        x = self.blocks(x)  # (B, T, embd_size) -> (B, T, embd_size)
         x = self.ln_f(x)
         logits = self.lm_head(x)
 
