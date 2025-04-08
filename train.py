@@ -6,38 +6,12 @@ from torch import nn
 import torch.nn.functional as F
 from datasets import load_dataset
 
+from tokenization import Lang
+
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 dataset = load_dataset("muzaffercky/kurdish-kurmanji-articles", split="train")
 
-
-class Lang:
-    def __init__(self, text: str, is_word_level=False):
-        self.is_word_level = is_word_level
-
-        if is_word_level:
-            words = set(
-                word for sentence in text.split(".") for word in sentence.split(" ")
-            )
-            self.vocab_size = len(words)
-            self.stoi = {word: i for i, word in enumerate(words)}
-            self.itos = {i: word for i, word in enumerate(words)}
-        else:
-            chars = set(text)
-            self.vocab_size = len(chars)
-            self.stoi = {char: i for i, char in enumerate(chars)}
-            self.itos = {i: char for i, char in enumerate(chars)}
-
-    def encode(self, text: str):
-        if not self.is_word_level:
-            return [self.stoi[char] for char in text]
-
-        words = [word for sentence in text.split(".") for word in sentence.split(" ")]
-        return [self.stoi[word] for word in words]
-
-    def decode(self, indexes):
-        words = [self.itos[index.item()] for index in indexes]
-        return " ".join(words)
 
 
 def prepare_data(dataset):
@@ -236,7 +210,7 @@ layers_num = 2
 
 
 text = prepare_data(dataset)
-lang = Lang(text, is_word_level=True)
+lang = Lang(text)
 data = torch.tensor(lang.encode(text), dtype=torch.long)
 vocab_size = lang.vocab_size
 n = int(0.9 * len(data))
