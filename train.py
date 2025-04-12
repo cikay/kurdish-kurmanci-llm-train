@@ -13,9 +13,16 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 dataset = load_dataset("muzaffercky/kurdish-kurmanji-articles", split="train")
 
 
-
 def prepare_data(dataset):
-    return "".join(row["content"] for row in dataset)
+    text = ""
+    non_empty_rows = 0
+    for row in dataset:
+        if row["content"] is not None:
+            text += row["content"] + "\n"
+        else:
+            non_empty_rows += 1
+    print(f"Number of non-empty rows: {non_empty_rows}")
+    return text
 
 
 def get_batches(split):
