@@ -5,12 +5,27 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from datasets import load_dataset
+from torch.utils.data import DataLoader, Dataset
 
 from tokenization import Lang
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 dataset = load_dataset("muzaffercky/kurdish-kurmanji-articles", split="train")
+
+
+class TextDataset(Dataset):
+    def __init__(self, data, block_size):
+        self.data = data
+        self.block_size = block_size
+
+    def __len__(self):
+        return len(self.data) - self.block_size
+
+    def __getitem__(self, idx):
+        x = self.data[idx : idx + self.block_size]
+        y = self.data[idx + 1 : idx + self.block_size + 1]
+        return x, y
 
 
 def prepare_data(dataset):
@@ -49,20 +64,19 @@ def time_since(since, percent):
 
 
 @torch.no_grad()
-def estimate_loss():
-    out = {}
+def estimate_loss(model, val_loader):
     model.eval()
-    for split in ["train", "val"]:
-        losses = torch.zeros(eval_iters)
-        for k in range(eval_iters):
-            x, y = get_batch(split)
-            _, loss = model(x, y)
-            losses[k] = loss.item()
-
-        out[split] = losses.mean()
+    valid_data_length = len(val_loader)
+    losses = torch.zeros(valid_data_length)
+    print(f"Validation data length: {valid_data_length}")
+    for k, (x, y) in enumerate(val_loader):
+        print(f"calculating valid loss, index: {k}")
+        x, y = x.to(device), y.to(device)
+        _, loss = model(x, y)
+        losses[k] = loss.item()
 
     model.train()
-    return out
+    return losses.mean()
 
 
 class Head(nn.Module):
@@ -81,7 +95,9 @@ class Head(nn.Module):
         query = self.W_query(x)  # (B, T, C) -> (B, T, head_size)
 
         # compute attention scores
-        wei = query @ key.transpose(-2, -1) * C**-0.5 # (B, T, C) @ (B, C, T) -> (B, T, T)
+        wei = (
+            query @ key.transpose(-2, -1) * C**-0.5
+        )  # (B, T, C) @ (B, C, T) -> (B, T, T)
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float("-inf"))  # (B, T, T)
         wei = F.softmax(wei, dim=-1)  # (B, T, T)
         wei = self.dropout(wei)  # (B, T, T)
@@ -184,45 +200,58 @@ class GPTLanguage(nn.Module):
         return idx
 
 
-def train(model, optimizer, epochs_num, print_every):
+def train(model, train_loader, val_loader, optimizer, epochs_num, print_every):
     start = time.time()
+    model.train()
     for epoch_num in range(1, epochs_num + 1):
+        total_loss = 0
+        total_batch = len(train_loader)
+        print(f"epoch: {epoch_num} | total batches: {total_batch}")
+        for batch_idx, (x, y) in enumerate(train_loader, 1):
+            x, y = x.to(device), y.to(device)
+            optimizer.zero_grad()
 
-        x, y = get_batch("train")
-        optimizer.zero_grad()
+            logits, loss = model(x, y)
 
-        logits, loss = model(x, y)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
 
-        loss.backward()
-        optimizer.step()
-
-        if epoch_num % print_every == 0:
-            losses = estimate_loss()
-            time_ = time_since(start, epoch_num / epochs_num)
+            batch_loss = total_loss / batch_idx
+            # valid_loss = estimate_loss(model, val_loader)
+            time_ = time_since(start, batch_idx / len(train_loader))
             print(
-                f"epoch: {epoch_num} | train loss: {losses['train']:.4f} | val loss: {losses['val']:.4f} | {time_}"
+                f"epoch: {epoch_num} | batch: {batch_idx} | epoch loss: {batch_loss:.4f} | {time_}"
             )
 
 
 learning_rate = 1e-3
 epochs_num = 100
 eval_iters = 200
-block_size = 16
+block_size = 320
 batch_size = 16
 dropout_p = 0.1
 print_every = 10
-heads_num = 8
+heads_num = 16
 embedding_size = 256
-layers_num = 2
+layers_num = 4
 
 
 text = prepare_data(dataset)
 lang = Lang(text)
 data = torch.tensor(lang.encode(text), dtype=torch.long)
 vocab_size = lang.vocab_size
+print(f"vocab: {''.join(lang.vocab)}")
 n = int(0.9 * len(data))
 train_data = data[:n]
 val_data = data[n:]
+
+
+train_dataset = TextDataset(train_data, block_size)
+val_dataset = TextDataset(val_data, block_size)
+
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
 
 model = GPTLanguage(
@@ -236,6 +265,8 @@ optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 print("vocab size:", vocab_size)
 train(
     model,
+    train_loader,
+    val_loader,
     optimizer,
     epochs_num,
     print_every,
@@ -245,7 +276,7 @@ sentence = "ziman hebûn e"
 encoded = lang.encode(sentence)
 print("encoded:", encoded)
 context = torch.tensor(encoded, dtype=torch.long).unsqueeze(0)
-tokens = model.generate(context, max_new_tokens=200)
+tokens = model.generate(context, max_new_tokens=2000)
 tokens_without_input = tokens[0][len(encoded) :]
 generated = lang.decode(tokens_without_input)
 print(generated)
