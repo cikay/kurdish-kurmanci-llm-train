@@ -86,7 +86,7 @@ def estimate_loss(model, val_loader):
 
 class Head(nn.Module):
 
-    def __init__(self, embd_size, head_size):
+    def __init__(self, embd_size, head_size, block_size, dropout_p=0.1):
         super().__init__()
         self.W_key = nn.Linear(embd_size, head_size, bias=False)
         self.W_query = nn.Linear(embd_size, head_size, bias=False)
@@ -114,10 +114,13 @@ class Head(nn.Module):
 
 class MultiHeadAttention(nn.Module):
 
-    def __init__(self, embd_size, heads_size, heads_num):
+    def __init__(self, embd_size, heads_size, heads_num, block_size, dropout_p=0.1):
         super().__init__()
         self.heads = nn.ModuleList(
-            [Head(embd_size, heads_size) for _ in range(heads_num)]
+            [
+                Head(embd_size, heads_size, block_size, dropout_p)
+                for _ in range(heads_num)
+            ]
         )
         self.proj = nn.Linear(embd_size, embd_size)
         self.dropout = nn.Dropout(dropout_p)
@@ -129,7 +132,7 @@ class MultiHeadAttention(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, embd_size):
+    def __init__(self, embd_size, dropout_p=0.1):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(embd_size, 4 * embd_size),
@@ -144,11 +147,13 @@ class FeedForward(nn.Module):
 
 class Block(nn.Module):
 
-    def __init__(self, embd_size, heads_num):
+    def __init__(self, embd_size, heads_num, block_size, dropout_p=0.1):
         super().__init__()
         head_size = embd_size // heads_num
-        self.sa = MultiHeadAttention(embd_size, head_size, heads_num)
-        self.ffwd = FeedForward(embd_size)
+        self.sa = MultiHeadAttention(
+            embd_size, head_size, heads_num, block_size, dropout_p
+        )
+        self.ffwd = FeedForward(embd_size, dropout_p)
         self.ln1 = nn.LayerNorm(embd_size)
         self.ln2 = nn.LayerNorm(embd_size)
 
@@ -160,12 +165,18 @@ class Block(nn.Module):
 
 class GPTLanguage(nn.Module):
 
-    def __init__(self, vocab_size, embd_size, heads_num, layers_num):
+    def __init__(
+        self, vocab_size, embd_size, heads_num, layers_num, block_size, dropout_p=0.1
+    ):
         super().__init__()
+        self.block_size = block_size
         self.token_embedding_table = nn.Embedding(vocab_size, embd_size)
         self.pos_embedding_table = nn.Embedding(block_size, embd_size)
         self.blocks = nn.Sequential(
-            *[Block(embd_size, heads_num) for _ in range(layers_num)]
+            *[
+                Block(embd_size, heads_num, block_size, dropout_p)
+                for _ in range(layers_num)
+            ]
         )
         self.ln_f = nn.LayerNorm(embd_size)
         self.lm_head = nn.Linear(embd_size, vocab_size)
@@ -195,7 +206,7 @@ class GPTLanguage(nn.Module):
         # shape of idx is (B, T)
 
         for _ in range(max_new_tokens):
-            idx_cond = idx[:, -block_size:]  # Get tokens of last block_size
+            idx_cond = idx[:, -self.block_size :]  # Get tokens of last block_size
             logits, _ = self(idx_cond)
             logits = logits[:, -1, :]  # B, T, C -> B, C
             probs = F.softmax(logits, dim=-1)
@@ -293,6 +304,8 @@ model = GPTLanguage(
     embd_size=embedding_size,
     heads_num=heads_num,
     layers_num=layers_num,
+    block_size=block_size,
+    dropout_p=dropout_p,
 )
 
 
