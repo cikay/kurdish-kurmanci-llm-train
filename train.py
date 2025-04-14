@@ -1,5 +1,7 @@
 import time
 import math
+import random
+import csv
 
 import torch
 from torch import nn
@@ -74,7 +76,6 @@ def estimate_loss(model, val_loader):
     losses = torch.zeros(valid_data_length)
     print(f"Validation data length: {valid_data_length}")
     for k, (x, y) in enumerate(val_loader):
-        print(f"calculating valid loss, index: {k}")
         x, y = x.to(device), y.to(device)
         _, loss = model(x, y)
         losses[k] = loss.item()
@@ -221,15 +222,41 @@ def train(model, train_loader, val_loader, optimizer, epochs_num, print_every):
             optimizer.step()
             total_loss += loss.item()
 
-            batch_loss = total_loss / batch_idx
-            # valid_loss = estimate_loss(model, val_loader)
-            time_ = time_since(start, batch_idx / len(train_loader))
-            print(
-                f"epoch: {epoch_num} | batch: {batch_idx} | epoch loss: {batch_loss:.4f} | {time_}"
-            )
+            if batch_idx % print_every == 0:
+                batch_loss = total_loss / batch_idx
+                time_ = time_since(start, batch_idx / len(train_loader))
+                print(
+                    f"epoch: {epoch_num} | batch: {batch_idx}/{total_batch} | epoch loss: {batch_loss:.4f} | {time_}"
+                )
+
+            if batch_idx % 1000 == 0:
+                model.eval()
+                generated = generate()
+                # save to csv file
+                with open("generated_text.csv", "a") as f:
+                    csv_writer = csv.writer(f)
+                    csv_writer.writerow([generated])
+    
+                model.train()
+
+        valid_loss = estimate_loss(model, val_loader)
+        mean_loss = total_loss / total_batch
+        print(
+            f"epoch: {epoch_num} | average loss: {mean_loss:.4f} | validation loss: {valid_loss:.4f}"
+        )
 
 
-learning_rate = 1e-3
+@torch.no_grad()
+def generate():
+    sentence = "ziman hebûn e"
+    encoded = lang.encode(sentence)
+    context = torch.tensor(encoded, dtype=torch.long).unsqueeze(0)
+    tokens = model.generate(context, max_new_tokens=2000)
+    tokens_without_input = tokens[0][len(encoded) :]
+    return lang.decode(tokens_without_input)
+
+
+learning_rate = 1e-5
 epochs_num = 100
 eval_iters = 200
 block_size = 320
@@ -280,12 +307,3 @@ train(
     epochs_num,
     print_every,
 )
-
-sentence = "ziman hebûn e"
-encoded = lang.encode(sentence)
-print("encoded:", encoded)
-context = torch.tensor(encoded, dtype=torch.long).unsqueeze(0)
-tokens = model.generate(context, max_new_tokens=2000)
-tokens_without_input = tokens[0][len(encoded) :]
-generated = lang.decode(tokens_without_input)
-print(generated)
