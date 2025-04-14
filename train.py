@@ -15,16 +15,20 @@ dataset = load_dataset("muzaffercky/kurdish-kurmanji-articles", split="train")
 
 
 class TextDataset(Dataset):
-    def __init__(self, data, block_size):
+    def __init__(self, data, block_size, num_samples_per_epoch):
         self.data = data
         self.block_size = block_size
+        self.num_samples_per_epoch = num_samples_per_epoch
+        self.max_start_index = len(self.data) - self.block_size
 
     def __len__(self):
-        return len(self.data) - self.block_size
+        return self.num_samples_per_epoch
 
     def __getitem__(self, idx):
-        x = self.data[idx : idx + self.block_size]
-        y = self.data[idx + 1 : idx + self.block_size + 1]
+        start_idx = random.randint(0, self.max_start_index)
+        end_idx = start_idx + self.block_size
+        x = self.data[start_idx:end_idx]
+        y = self.data[start_idx + 1 : end_idx + 1]
         return x, y
 
 
@@ -247,8 +251,11 @@ train_data = data[:n]
 val_data = data[n:]
 
 
-train_dataset = TextDataset(train_data, block_size)
-val_dataset = TextDataset(val_data, block_size)
+num_train_samples_per_epoch = len(train_data) // block_size
+train_dataset = TextDataset(train_data, block_size, num_train_samples_per_epoch)
+
+num_val_samples_per_epoch = len(val_data) // block_size
+val_dataset = TextDataset(val_data, block_size, num_val_samples_per_epoch)
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
@@ -261,8 +268,10 @@ model = GPTLanguage(
     layers_num=layers_num,
 )
 
+
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 print("vocab size:", vocab_size)
+
 train(
     model,
     train_loader,
