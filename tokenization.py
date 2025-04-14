@@ -1,6 +1,9 @@
 class Lang:
 
-    def __init__(self, vocab: set):
+    def __init__(self, vocab: set | None = None):
+        if vocab is None:
+            vocab = set()
+
         self.stoi = {}
         self.itos = {}
         self.vocab = vocab
@@ -16,3 +19,20 @@ class Lang:
 
     def decode(self, indexes: list[int]) -> str:
         return "".join([self.itos[idx.item()] for idx in indexes])
+
+    def state_dict(self):
+        return {
+            "stoi": self.stoi,
+            "itos": self.itos,
+            "vocab": self.vocab,
+            "vocab_size": self.vocab_size,
+        }
+
+    @classmethod
+    def load_state_dict(cls, state_dict):
+        instance = cls()
+        instance.stoi = state_dict["stoi"]
+        instance.itos = state_dict["itos"]
+        instance.vocab = state_dict["vocab"]
+        instance.vocab_size = state_dict["vocab_size"]
+        return instance

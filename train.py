@@ -118,6 +118,7 @@ def train(model, train_loader, val_loader, optimizer, epochs_num, print_every):
         torch.save(
             {
                 "model_state_dict": model.state_dict(),
+                "lang_state_dict": lang.state_dict(),
                 "hyperparameters": {
                     "embedding_size": embedding_size,
                     "heads_num": heads_num,
