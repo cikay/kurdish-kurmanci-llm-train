@@ -256,6 +256,26 @@ def train(model, train_loader, val_loader, optimizer, epochs_num, print_every):
             f"epoch: {epoch_num} | average loss: {mean_loss:.4f} | validation loss: {valid_loss:.4f}"
         )
 
+        torch.save(
+            {
+                "model_state_dict": model.state_dict(),
+                "hyperparameters": {
+                    "embedding_size": embedding_size,
+                    "heads_num": heads_num,
+                    "layers_num": layers_num,
+                    "block_size": block_size,
+                    "vocab_size": vocab_size,
+                    "vocab": lang.vocab,
+                    "learning_rate": learning_rate,
+                    "epochs_num": epochs_num,
+                    "batch_size": batch_size,
+                    "dropout_p": dropout_p,
+                    "print_every": print_every,
+                },
+            },
+            f"model_epoch_{epoch_num}.pth",
+        )
+
 
 @torch.no_grad()
 def generate():
