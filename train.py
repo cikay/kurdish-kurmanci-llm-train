@@ -269,7 +269,7 @@ layers_num = 4
 
 
 text = prepare_data(dataset)
-lang = Lang(text)
+lang = Lang(set(text))
 data = torch.tensor(lang.encode(text), dtype=torch.long)
 vocab_size = lang.vocab_size
 print(f"vocab: {''.join(lang.vocab)}")

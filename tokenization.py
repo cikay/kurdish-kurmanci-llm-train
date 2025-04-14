@@ -1,9 +1,9 @@
 class Lang:
 
-    def __init__(self, text: str):
+    def __init__(self, vocab: set):
         self.stoi = {}
         self.itos = {}
-        self.vocab = set(text)
+        self.vocab = vocab
         self.vocab_size = len(self.vocab)
         self.build_vocab()
 
