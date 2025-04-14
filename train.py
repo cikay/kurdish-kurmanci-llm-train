@@ -256,7 +256,7 @@ def generate():
     return lang.decode(tokens_without_input)
 
 
-learning_rate = 1e-5
+learning_rate = 0.0007
 epochs_num = 100
 eval_iters = 200
 block_size = 320
