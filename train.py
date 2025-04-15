@@ -38,15 +38,16 @@ class TextDataset(Dataset):
 
 
 def prepare_data(dataset):
-    text = ""
+    lines = []
     non_empty_rows = 0
     for row in dataset:
-        if row["content"] is not None:
-            text += row["content"] + "\n"
+        content = row.get("content")
+        if content:
+            lines.append(content)
         else:
             non_empty_rows += 1
     print(f"Number of non-empty rows: {non_empty_rows}")
-    return text
+    return "\n".join(lines)
 
 
 def to_minutes(s):
