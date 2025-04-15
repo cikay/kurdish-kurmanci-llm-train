@@ -142,7 +142,7 @@ def train(
                     "block_size": block_size,
                     "vocab_size": vocab_size,
                     "vocab": lang.vocab,
-                    "learning_rate": learning_rate,
+                    "learning_rate": optimizer.param_groups[0]['lr'],
                     "epochs_num": epochs_num,
                     "batch_size": batch_size,
                     "dropout_p": dropout_p,
