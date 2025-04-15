@@ -207,11 +207,11 @@ remaining_epochs = 100
 eval_iters = 200
 block_size = 320
 batch_size = 16
-dropout_p = 0.1
+dropout_p = 0.2
 print_every = 10
-heads_num = 16
-embedding_size = 256
-layers_num = 4
+heads_num = 64
+embedding_size = 512
+layers_num = 8
 
 max_epoch_file = get_last_saved_model()
 text = prepare_data(dataset)
