@@ -7,7 +7,7 @@ import os
 import torch
 from datasets import load_dataset
 from torch.utils.data import Dataset, DataLoader
-
+from torch.optim.lr_scheduler import LinearLR
 
 from tokenization import Lang
 from model import GPTLanguage
@@ -15,6 +15,8 @@ from model import GPTLanguage
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 dataset = load_dataset("muzaffercky/kurdish-kurmanji-articles", split="train")
+
+PATH = "."
 
 
 class TextDataset(Dataset):
@@ -76,7 +78,15 @@ def estimate_loss(model, val_loader):
     return losses.mean()
 
 
-def train(model, train_loader, val_loader, optimizer, epochs_num, print_every):
+def train(
+    model,
+    scheduler,
+    train_loader,
+    val_loader,
+    optimizer,
+    epochs_num,
+    print_every,
+):
     start = time.time()
     model.train()
     for epoch_num in range(1, epochs_num + 1):
@@ -91,6 +101,8 @@ def train(model, train_loader, val_loader, optimizer, epochs_num, print_every):
 
             loss.backward()
             optimizer.step()
+            scheduler.step()
+
             total_loss += loss.item()
 
             if batch_idx % print_every == 0:
@@ -99,12 +111,13 @@ def train(model, train_loader, val_loader, optimizer, epochs_num, print_every):
                 print(
                     f"epoch: {epoch_num} | batch: {batch_idx}/{total_batch} | epoch loss: {batch_loss:.4f} | {time_}"
                 )
+                print(f"Epoch {epoch_num} | LR: {optimizer.param_groups[0]['lr']:.8f}")
 
             if batch_idx % 1000 == 0:
                 model.eval()
                 generated = generate()
                 # save to csv file
-                with open("generated_text.csv", "a") as f:
+                with open(f"{PATH}/generated_text.csv", "a") as f:
                     csv_writer = csv.writer(f)
                     csv_writer.writerow([generated])
 
@@ -120,6 +133,8 @@ def train(model, train_loader, val_loader, optimizer, epochs_num, print_every):
             {
                 "model_state_dict": model.state_dict(),
                 "lang_state_dict": lang.state_dict(),
+                "epoch": epoch_num,
+                "scheduler_state_dict": scheduler.state_dict(),
                 "hyperparameters": {
                     "embedding_size": embedding_size,
                     "heads_num": heads_num,
@@ -134,11 +149,8 @@ def train(model, train_loader, val_loader, optimizer, epochs_num, print_every):
                     "print_every": print_every,
                 },
             },
-            f"model_epoch_{epoch_num}.pth",
+            f"{PATH}/model_epoch_{epoch_num}.pth",
         )
-
-
-PATH = "."
 
 
 def get_last_saved_model():
@@ -158,38 +170,24 @@ def get_last_saved_model():
     return max_epoch_file
 
 
-def get_model(text):
-    max_epoch_file = get_last_saved_model()
-    if max_epoch_file:
-        checkpoint = torch.load(max_epoch_file)
-        print(f"Loading model from {max_epoch_file}")
-        hyperparameters = checkpoint["hyperparameters"]
-        model = GPTLanguage(
-            vocab_size=hyperparameters["vocab_size"],
-            embd_size=hyperparameters["embedding_size"],
-            heads_num=hyperparameters["heads_num"],
-            layers_num=hyperparameters["layers_num"],
-            block_size=hyperparameters["block_size"],
-        )
-        model.load_state_dict(checkpoint["model_state_dict"])
-        print("Model loaded successfully")
-
-        lang = Lang.load_state_dict(checkpoint["lang_state_dict"])
-
-        return model, lang
-
-    lang = Lang(set(text))
+def get_model(max_epoch_file):
+    print("max_epoch_file", max_epoch_file)
+    checkpoint = torch.load(max_epoch_file)
+    print(f"Loading model from {max_epoch_file}")
+    hyperparameters = checkpoint["hyperparameters"]
     model = GPTLanguage(
-        vocab_size=vocab_size,
-        embd_size=embedding_size,
-        heads_num=heads_num,
-        layers_num=layers_num,
-        block_size=block_size,
-        dropout_p=dropout_p,
+        vocab_size=hyperparameters["vocab_size"],
+        embd_size=hyperparameters["embedding_size"],
+        heads_num=hyperparameters["heads_num"],
+        layers_num=hyperparameters["layers_num"],
+        block_size=hyperparameters["block_size"],
     ).to(device)
-    print("Model initialized successfully")
+    model.load_state_dict(checkpoint["model_state_dict"])
+    print("Model loaded successfully")
 
-    return model, lang
+    lang = Lang.load_state_dict(checkpoint["lang_state_dict"])
+
+    return model, lang, checkpoint["epoch"]
 
 
 @torch.no_grad()
@@ -204,6 +202,7 @@ def generate():
 
 learning_rate = 0.0007
 epochs_num = 100
+remaining_epochs = 100
 eval_iters = 200
 block_size = 320
 batch_size = 16
@@ -213,9 +212,33 @@ heads_num = 16
 embedding_size = 256
 layers_num = 4
 
-
+max_epoch_file = get_last_saved_model()
 text = prepare_data(dataset)
-model, lang = get_model(dataset)
+
+if max_epoch_file:
+    checkpoint = torch.load(max_epoch_file)
+    print(f"Loading model from {max_epoch_file}")
+    hyperparameters = checkpoint["hyperparameters"]
+    model, lang, last_saved_epoch = get_model(max_epoch_file)
+    learning_rate = hyperparameters["learning_rate"]
+    remaining_epochs = 100 - last_saved_epoch
+    print("remaining epochs:", remaining_epochs)
+else:
+    lang = Lang(set(text))
+    vocab_size = lang.vocab_size
+    model = GPTLanguage(
+        vocab_size=vocab_size,
+        embd_size=embedding_size,
+        heads_num=heads_num,
+        layers_num=layers_num,
+        block_size=block_size,
+        dropout_p=dropout_p,
+    ).to(device)
+    print("Model initialized successfully")
+
+
+optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+
 
 data = torch.tensor(lang.encode(text), dtype=torch.long)
 vocab_size = lang.vocab_size
@@ -235,14 +258,24 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
 
-optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 print("vocab size:", vocab_size)
+
+
+steps_to_decay_lr = (len(train_loader) * remaining_epochs) // 4
+print(f"Total train batches: {steps_to_decay_lr}")
+scheduler = LinearLR(
+    optimizer,
+    start_factor=1.0,
+    end_factor=0.0,
+    total_iters=steps_to_decay_lr,
+)
 
 train(
     model,
+    scheduler,
     train_loader,
     val_loader,
     optimizer,
-    epochs_num,
+    remaining_epochs,
     print_every,
 )
