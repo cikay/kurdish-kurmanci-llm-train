@@ -2,6 +2,7 @@ import time
 import math
 import random
 import csv
+import os
 
 import torch
 from datasets import load_dataset
@@ -137,11 +138,65 @@ def train(model, train_loader, val_loader, optimizer, epochs_num, print_every):
         )
 
 
+PATH = "."
+
+
+def get_last_saved_model():
+    max_epoch_file = ""
+    max_epoch = 0
+    all_entries = os.listdir(PATH)
+    for file in all_entries:
+        full_path = os.path.join(PATH, file)
+        if not os.path.isfile(full_path) or not file.startswith("model_epoch_"):
+            continue
+
+        epoch_num = int(file.split("_")[2].split(".")[0])
+        if epoch_num > max_epoch:
+            max_epoch = epoch_num
+            max_epoch_file = full_path
+
+    return max_epoch_file
+
+
+def get_model(text):
+    max_epoch_file = get_last_saved_model()
+    if max_epoch_file:
+        checkpoint = torch.load(max_epoch_file)
+        print(f"Loading model from {max_epoch_file}")
+        hyperparameters = checkpoint["hyperparameters"]
+        model = GPTLanguage(
+            vocab_size=hyperparameters["vocab_size"],
+            embd_size=hyperparameters["embedding_size"],
+            heads_num=hyperparameters["heads_num"],
+            layers_num=hyperparameters["layers_num"],
+            block_size=hyperparameters["block_size"],
+        )
+        model.load_state_dict(checkpoint["model_state_dict"])
+        print("Model loaded successfully")
+
+        lang = Lang.load_state_dict(checkpoint["lang_state_dict"])
+
+        return model, lang
+
+    lang = Lang(set(text))
+    model = GPTLanguage(
+        vocab_size=vocab_size,
+        embd_size=embedding_size,
+        heads_num=heads_num,
+        layers_num=layers_num,
+        block_size=block_size,
+        dropout_p=dropout_p,
+    ).to(device)
+    print("Model initialized successfully")
+
+    return model, lang
+
+
 @torch.no_grad()
 def generate():
     sentence = "ziman hebûn e"
     encoded = lang.encode(sentence)
-    context = torch.tensor(encoded, dtype=torch.long).unsqueeze(0)
+    context = torch.tensor(encoded, dtype=torch.long).unsqueeze(0).to(device)
     tokens = model.generate(context, max_new_tokens=2000)
     tokens_without_input = tokens[0][len(encoded) :]
     return lang.decode(tokens_without_input)
@@ -160,7 +215,8 @@ layers_num = 4
 
 
 text = prepare_data(dataset)
-lang = Lang(set(text))
+model, lang = get_model(dataset)
+
 data = torch.tensor(lang.encode(text), dtype=torch.long)
 vocab_size = lang.vocab_size
 print(f"vocab: {''.join(lang.vocab)}")
@@ -177,16 +233,6 @@ val_dataset = TextDataset(val_data, block_size, num_val_samples_per_epoch)
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-
-
-model = GPTLanguage(
-    vocab_size=vocab_size,
-    embd_size=embedding_size,
-    heads_num=heads_num,
-    layers_num=layers_num,
-    block_size=block_size,
-    dropout_p=dropout_p,
-)
 
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
