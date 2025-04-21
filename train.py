@@ -212,8 +212,8 @@ batch_size = 16
 dropout_p = 0.2
 print_every = 10
 heads_num = 64
-embedding_size = 512
-layers_num = 8
+embedding_size = 1024
+layers_num = 16
 
 max_epoch_file = get_last_saved_model()
 text = prepare_data(dataset)
