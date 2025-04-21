@@ -9,8 +9,11 @@ from datasets import load_dataset
 from torch.utils.data import Dataset, DataLoader
 from torch.optim.lr_scheduler import LinearLR
 
-from tokenization import Lang
 from model import GPTLanguage
+from transformers import PreTrainedTokenizerFast
+
+
+tokenizer = PreTrainedTokenizerFast.from_pretrained("muzaffercky/test")
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -133,7 +136,6 @@ def train(
         torch.save(
             {
                 "model_state_dict": model.state_dict(),
-                "lang_state_dict": lang.state_dict(),
                 "epoch": epoch_num,
                 "scheduler_state_dict": scheduler.state_dict(),
                 "hyperparameters": {
@@ -142,7 +144,6 @@ def train(
                     "layers_num": layers_num,
                     "block_size": block_size,
                     "vocab_size": vocab_size,
-                    "vocab": lang.vocab,
                     "learning_rate": optimizer.param_groups[0]['lr'],
                     "epochs_num": epochs_num,
                     "batch_size": batch_size,
@@ -186,26 +187,25 @@ def get_model(max_epoch_file):
     model.load_state_dict(checkpoint["model_state_dict"])
     print("Model loaded successfully")
 
-    lang = Lang.load_state_dict(checkpoint["lang_state_dict"])
 
-    return model, lang, checkpoint["epoch"]
+    return model, checkpoint["epoch"]
 
 
 @torch.no_grad()
 def generate():
     sentence = "ziman hebûn e"
-    encoded = lang.encode(sentence)
+    encoded = tokenizer.encode(sentence)
     context = torch.tensor(encoded, dtype=torch.long).unsqueeze(0).to(device)
     tokens = model.generate(context, max_new_tokens=2000)
     tokens_without_input = tokens[0][len(encoded) :]
-    return lang.decode(tokens_without_input)
+    return tokenizer.decode(tokens_without_input)
 
 
 learning_rate = 0.0007
 epochs_num = 100
 remaining_epochs = 100
 eval_iters = 200
-block_size = 320
+block_size = 50
 batch_size = 16
 dropout_p = 0.2
 print_every = 10
@@ -215,18 +215,18 @@ layers_num = 8
 
 max_epoch_file = get_last_saved_model()
 text = prepare_data(dataset)
+vocab_size = tokenizer.vocab_size
+
 
 if max_epoch_file:
     checkpoint = torch.load(max_epoch_file)
     print(f"Loading model from {max_epoch_file}")
     hyperparameters = checkpoint["hyperparameters"]
-    model, lang, last_saved_epoch = get_model(max_epoch_file)
+    model, last_saved_epoch = get_model(max_epoch_file)
     learning_rate = hyperparameters["learning_rate"]
     remaining_epochs = 100 - last_saved_epoch
     print("remaining epochs:", remaining_epochs)
 else:
-    lang = Lang(set(text))
-    vocab_size = lang.vocab_size
     model = GPTLanguage(
         vocab_size=vocab_size,
         embd_size=embedding_size,
@@ -241,9 +241,7 @@ else:
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
 
-data = torch.tensor(lang.encode(text), dtype=torch.long)
-vocab_size = lang.vocab_size
-print(f"vocab: {''.join(lang.vocab)}")
+data = torch.tensor(tokenizer.encode(text), dtype=torch.long)
 n = int(0.9 * len(data))
 train_data = data[:n]
 val_data = data[n:]
@@ -257,9 +255,6 @@ val_dataset = TextDataset(val_data, block_size, num_val_samples_per_epoch)
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-
-
-print("vocab size:", vocab_size)
 
 
 steps_to_decay_lr = (len(train_loader) * remaining_epochs) // 4
