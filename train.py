@@ -90,10 +90,11 @@ def train(
     optimizer,
     epochs_num,
     print_every,
+    start_epoch=1,
 ):
     start = time.time()
     model.train()
-    for epoch_num in range(1, epochs_num + 1):
+    for epoch_num in range(start_epoch, epochs_num + 1):
         total_loss = 0
         total_batch = len(train_loader)
         print(f"epoch: {epoch_num} | total batches: {total_batch}")
@@ -204,6 +205,7 @@ def generate():
 learning_rate = 0.0007
 epochs_num = 100
 remaining_epochs = 100
+start_epoch = 1
 eval_iters = 200
 block_size = 50
 batch_size = 16
@@ -225,7 +227,7 @@ if max_epoch_file:
     model, last_saved_epoch = get_model(max_epoch_file)
     learning_rate = hyperparameters["learning_rate"]
     remaining_epochs = 100 - last_saved_epoch
-    print("remaining epochs:", remaining_epochs)
+    start_epoch = last_saved_epoch + 1
 else:
     model = GPTLanguage(
         vocab_size=vocab_size,
@@ -272,6 +274,7 @@ train(
     train_loader,
     val_loader,
     optimizer,
-    remaining_epochs,
+    epochs_num,
     print_every,
+    start_epoch=start_epoch,
 )
