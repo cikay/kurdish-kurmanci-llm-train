@@ -203,17 +203,17 @@ def generate():
 
 
 learning_rate = 0.0007
-epochs_num = 100
-remaining_epochs = 100
+epochs_num = 10
+remaining_epochs = epochs_num
 start_epoch = 1
 eval_iters = 200
-block_size = 50
+block_size = 100
 batch_size = 16
 dropout_p = 0.2
 print_every = 10
 heads_num = 64
 embedding_size = 1024
-layers_num = 16
+layers_num = 12
 
 max_epoch_file = get_last_saved_model()
 text = prepare_data(dataset)
