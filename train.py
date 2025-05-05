@@ -13,11 +13,13 @@ from model import GPTLanguage
 from transformers import PreTrainedTokenizerFast
 
 
-tokenizer = PreTrainedTokenizerFast.from_pretrained("muzaffercky/test")
+tokenizer = PreTrainedTokenizerFast.from_pretrained(
+    "muzaffercky/kurdish-kurmanji-tokenizer", revision="v1.0"
+)
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-dataset = load_dataset("muzaffercky/kurdish-kurmanji-articles", split="train")
+dataset = load_dataset("muzaffercky/kurdish-kurmanji-news", split="train")
 
 PATH = "."
 
