@@ -7,16 +7,14 @@ import os
 import torch
 from datasets import load_dataset
 from torch.utils.data import Dataset, DataLoader
-from torch.optim.lr_scheduler import LinearLR
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 from model import GPTLanguage
-from transformers import PreTrainedTokenizerFast
+import sentencepiece as spm
 
 
-tokenizer = PreTrainedTokenizerFast.from_pretrained(
-    "muzaffercky/kurdish-kurmanji-tokenizer", revision="v1.0"
-)
-
+tokenizer = spm.SentencePieceProcessor()
+tokenizer.load(f"./tokenizers/kurmanji_unigram_10000.model")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 dataset = load_dataset("muzaffercky/kurdish-kurmanji-news", split="train")
@@ -108,7 +106,7 @@ def train(
 
             loss.backward()
             optimizer.step()
-            scheduler.step()
+            scheduler.step()  # Step after each batch for more visible decay
 
             total_loss += loss.item()
 
@@ -197,11 +195,13 @@ def get_model(max_epoch_file):
 @torch.no_grad()
 def generate():
     sentence = "ziman hebûn e"
-    encoded = tokenizer.encode(sentence)
+    encoded = tokenizer.Encode(sentence)
     context = torch.tensor(encoded, dtype=torch.long).unsqueeze(0).to(device)
     tokens = model.generate(context, max_new_tokens=2000)
     tokens_without_input = tokens[0][len(encoded) :]
-    return tokenizer.decode(tokens_without_input)
+    tokens_list = tokens_without_input.tolist()
+    individual_tokens = tokenizer.decode(tokens_list)
+    return "".join(individual_tokens)
 
 
 learning_rate = 0.0007
@@ -219,7 +219,7 @@ layers_num = 12
 
 max_epoch_file = get_last_saved_model()
 text = prepare_data(dataset)
-vocab_size = tokenizer.vocab_size
+vocab_size = tokenizer.get_piece_size()
 
 
 if max_epoch_file:
@@ -244,8 +244,9 @@ else:
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
-
-data = torch.tensor(tokenizer.encode(text), dtype=torch.long)
+tokens = tokenizer.encode(text)
+print(f"Number of tokens: {len(tokens)}")
+data = torch.tensor(tokens, dtype=torch.long)
 n = int(0.9 * len(data))
 train_data = data[:n]
 val_data = data[n:]
@@ -261,13 +262,11 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
 
-steps_to_decay_lr = (len(train_loader) * remaining_epochs) // 4
-print(f"Total train batches: {steps_to_decay_lr}")
-scheduler = LinearLR(
+total_iterations = len(train_loader) * remaining_epochs
+scheduler = CosineAnnealingLR(
     optimizer,
-    start_factor=1.0,
-    end_factor=0.0,
-    total_iters=steps_to_decay_lr,
+    T_max=total_iterations,
+    eta_min=1e-7,
 )
 
 train(
