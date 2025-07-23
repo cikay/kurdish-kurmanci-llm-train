@@ -1,0 +1,1 @@
+Training Kurdish Kurmanji tokenizer script
