@@ -1,1 +1,1 @@
-Training Kurdish Kurmanji tokenizer script
+Training Kurdish Kurmanji LLM script
