@@ -213,7 +213,7 @@ block_size = 100
 batch_size = 16
 dropout_p = 0.2
 print_every = 10
-heads_num = 64
+heads_num = 16
 embedding_size = 1024
 layers_num = 12
 
