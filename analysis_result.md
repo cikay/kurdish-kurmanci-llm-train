@@ -57,13 +57,13 @@ spent minutes: 180
 learning rate start from: 0.0007
 **************************************************
 Vocab size: 10,000
-loss start: 
-loss end:  
-batch rate: 
+loss start: 7.2205
+loss end: 3.5548
+batch rate: 12630/88394 for first epoch
 heads number: 12
 layers number: 6
 embedding size: 768
 block size: 100
-spent minutes: 
+spent minutes: 637
 learning rate start from: 0.0007
 **************************************************
