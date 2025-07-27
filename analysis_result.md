@@ -56,3 +56,14 @@ block size: 100
 spent minutes: 180
 learning rate start from: 0.0007
 **************************************************
+Vocab size: 10,000
+loss start: 
+loss end:  
+batch rate: 
+heads number: 12
+layers number: 6
+embedding size: 768
+block size: 100
+spent minutes: 
+learning rate start from: 0.0007
+**************************************************
