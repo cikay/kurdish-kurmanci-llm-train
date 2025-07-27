@@ -262,11 +262,14 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
 
-total_iterations = len(train_loader) * remaining_epochs
-scheduler = CosineAnnealingLR(
+# Replace CosineAnnealingLR with CosineAnnealingWarmRestarts for more visible decay
+# T_0 is the number of iterations for the first restart cycle
+# T_mult is a factor that increases T_0 after each restart
+scheduler = CosineAnnealingWarmRestarts(
     optimizer,
-    T_max=total_iterations,
-    eta_min=1e-7,
+    T_0=len(train_loader) // 10,  # First restart after ~10% of an epoch
+    T_mult=2,  # Double the period after each restart
+    eta_min=1e-7,  # Minimum learning rate
 )
 
 train(
