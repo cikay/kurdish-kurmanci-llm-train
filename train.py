@@ -3,6 +3,7 @@ import math
 import random
 import csv
 import os
+import argparse
 
 import torch
 from datasets import load_dataset
@@ -21,6 +22,11 @@ dataset = load_dataset("muzaffercky/kurdish-kurmanji-news", split="train")
 
 PATH = "."
 
+
+parser = argparse.ArgumentParser(description="Fine tune model")
+parser.add_argument("--file-name", type=str, help="Fine tune model file name")
+
+args = parser.parse_args()
 
 class TextDataset(Dataset):
     def __init__(self, data, block_size, num_samples_per_epoch):
@@ -173,7 +179,7 @@ def get_last_saved_model():
     return max_epoch_file
 
 
-def get_model(max_epoch_file):
+def get_model(max_epoch_file, layers_num = None):
     print("max_epoch_file", max_epoch_file)
     checkpoint = torch.load(max_epoch_file)
     print(f"Loading model from {max_epoch_file}")
@@ -182,12 +188,13 @@ def get_model(max_epoch_file):
         vocab_size=hyperparameters["vocab_size"],
         embd_size=hyperparameters["embedding_size"],
         heads_num=hyperparameters["heads_num"],
-        layers_num=hyperparameters["layers_num"],
+        layers_num=layers_num or hyperparameters["layers_num"],
         block_size=hyperparameters["block_size"],
     ).to(device)
-    model.load_state_dict(checkpoint["model_state_dict"])
+    missing = model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+    print("Missing keys:", missing.missing_keys)
+    print("Unexpected keys:", missing.unexpected_keys)
     print("Model loaded successfully")
-
 
     return model, checkpoint["epoch"]
 
@@ -217,19 +224,22 @@ heads_num = 8
 embedding_size = 256
 layers_num = 6
 
-max_epoch_file = get_last_saved_model()
+
 text = prepare_data(dataset)
 vocab_size = tokenizer.get_piece_size()
 
 
-if max_epoch_file:
-    checkpoint = torch.load(max_epoch_file)
-    print(f"Loading model from {max_epoch_file}")
+print(f"File name: {args.file_name}")
+
+if args.file_name:
+    checkpoint = torch.load(args.file_name)
+    print(f"Loading model from {args.file_name}")
     hyperparameters = checkpoint["hyperparameters"]
-    model, last_saved_epoch = get_model(max_epoch_file)
+    model, last_saved_epoch = get_model(args.file_name, layers_num)
     learning_rate = hyperparameters["learning_rate"]
-    remaining_epochs = 100 - last_saved_epoch
+    remaining_epochs = epochs_num - last_saved_epoch
     start_epoch = last_saved_epoch + 1
+    print("Model is loaded")
 else:
     model = GPTLanguage(
         vocab_size=vocab_size,
