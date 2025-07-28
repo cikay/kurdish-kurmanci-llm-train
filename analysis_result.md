@@ -75,6 +75,6 @@ heads number: 8
 layers number: 4
 embedding size: 256
 block size: 100
-spent minutes: 14121350
+spent minutes: 1412
 learning rate start from: 0.0007
 **************************************************
