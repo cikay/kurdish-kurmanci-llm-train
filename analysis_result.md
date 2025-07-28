@@ -67,3 +67,14 @@ block size: 100
 spent minutes: 637
 learning rate start from: 0.0007
 **************************************************
+Vocab size: 10,000
+loss start: I did not note
+loss end: 2.9901, It increase the loss after it achieve 2.97
+batch rate: 66290/8839 for second epoch
+heads number: 8
+layers number: 4
+embedding size: 256
+block size: 100
+spent minutes: 14121350
+learning rate start from: 0.0007
+**************************************************
