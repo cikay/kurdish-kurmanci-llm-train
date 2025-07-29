@@ -78,3 +78,15 @@ block size: 100
 spent minutes: 1412
 learning rate start from: 0.0007
 **************************************************
+
+The previous one is fine tunned by increasing layers to 6
+Vocab size: 10,000
+loss end: 2.8955
+batch rate: 29580/88394 for first epoch in the new training
+heads number: 8
+layers number: 6
+embedding size: 256
+block size: 100
+spent minutes: 591
+learning rate start from: 0.0007
+**************************************************
