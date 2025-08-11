@@ -90,3 +90,30 @@ block size: 100
 spent minutes: 591
 learning rate start from: 0.0007
 **************************************************
+Vocab size: 10,000
+loss start: 8.2499
+batch size: 24
+loss end: 2.9
+batch rate: 
+heads number: 10
+layers number: 8
+embedding size: 320
+block size: 120
+spent minutes: 
+learning rate start from: 0.0004
+I did not note some results but it could not ge below 2.9 after about 1000 minutes
+**********************
+Vocab size: 10,000
+loss start: 8.2 or 8.1
+batch size: 64
+loss end:  4.0590
+batch rate: 1680/4796 epoch 2
+heads number: 10
+layers number: 6
+embedding size: 320
+block size: 256
+spent minutes: 2069
+learning rate start from: 0.0001
+dropout_p = 0.15
+last gap: 1.1178
+**********************
