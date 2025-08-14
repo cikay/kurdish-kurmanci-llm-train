@@ -1,4 +1,0 @@
-| vocab size   | loss start from   | loss end at | batch rate   | heads number | layers number | embedding size | block size | spent minutes
-| 10,000       |   7.1679          |   3.7282    | 7820/88394   |    64        |    12         | 1024           | 100        |  I did not note
-| 10,000       |   7.1834          |   3.7681    | 7820/88394   |    16        |    12         | 1024           | 100        |  761
-| 14,000       |   7.8421          |    4.9418   | 3640/70535   |     16       |    12         |  1024          |  100       |  718
