@@ -117,3 +117,17 @@ learning rate start from: 0.0001
 dropout_p = 0.15
 last gap: 1.1178
 **********************
+Vocab size: 10,000
+loss start: 7.9988
+batch size: 64
+loss end: 3.0669
+batch rate: 1080/4796 epoch 2
+Validation loss: 4.2621
+heads number: 10
+layers number: 8
+embedding size: 640
+block size: 256
+spent minutes: more than 2880
+learning rate start from: 0.0002
+dropout_p: 0.15
+**********************
