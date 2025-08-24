@@ -140,6 +140,14 @@ def train(
             f"epoch: {epoch_num} | average loss: {mean_loss:.4f} | validation loss: {valid_loss:.4f}"
         )
 
+        model_name = generate_model_name(
+            layers_num,
+            epoch_num,
+            block_size,
+            embedding_size,
+            heads_num,
+        )
+
         torch.save(
             {
                 "model_state_dict": model.state_dict(),
@@ -198,6 +206,8 @@ def get_model(max_epoch_file, layers_num = None):
 
     return model, checkpoint["epoch"]
 
+def generate_model_name(layers_num, epoch_num, block_size, embedding_size, heads_num):
+    return f"model_epoch_{epoch_num}e_{layers_num}l_{block_size}b_{embedding_size}em_{heads_num}h.pth"
 
 @torch.no_grad()
 def generate():
