@@ -18,7 +18,11 @@ tokenizer = spm.SentencePieceProcessor()
 tokenizer.load(f"./tokenizers/kurmanji_unigram_10000.model")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-dataset = load_dataset("muzaffercky/kurdish-kurmanji-news", split="train")
+
+dataset = load_dataset("muzaffercky/kurdish-kurmanji-news")
+
+train_dataset = dataset["train"]
+validation_dataset = dataset["test"]
 
 PATH = "."
 
