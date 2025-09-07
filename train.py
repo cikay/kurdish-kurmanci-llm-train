@@ -17,7 +17,16 @@ import sentencepiece as spm
 tokenizer = spm.SentencePieceProcessor()
 tokenizer.load(f"./tokenizers/kurmanji_unigram_10000.model")
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+if torch.cuda.is_available():
+    device = "cuda"
+    print("CUDA is used")
+elif torch.backends.mps.is_available():
+    device = "mps"
+    print("MPS is used")
+else:
+    device = "cpu"
+    print("CPU is used")
+
 
 dataset = load_dataset("muzaffercky/kurdish-kurmanji-news")
 
