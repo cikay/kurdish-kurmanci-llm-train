@@ -4,6 +4,7 @@ import random
 import csv
 import os
 import argparse
+from datetime import datetime
 
 import torch
 from datasets import load_dataset
@@ -220,7 +221,8 @@ def get_model(max_epoch_file, layers_num = None):
     return model, checkpoint["epoch"]
 
 def generate_model_name(layers_num, epoch_num, block_size, embedding_size, heads_num):
-    return f"model_epoch_{epoch_num}e_{layers_num}l_{block_size}b_{embedding_size}em_{heads_num}h.pth"
+    date = datetime.now().strftime("%Y-%m-%d")
+    return f"model_{date}_{epoch_num}e_{layers_num}l_{block_size}b_{embedding_size}em_{heads_num}h.pth"
 
 @torch.no_grad()
 def generate():
